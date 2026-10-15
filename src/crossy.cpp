@@ -401,13 +401,45 @@ static void handleInput(uint32_t now) {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int x, int y, bool dim) {
+void drawIcon(int x, int y, bool dim, uint32_t t) {
+  // the chicken hops up across two lanes of traffic, just missing the cars, then
+  // the view scrolls on to the next road (verge / lane A / lane B, 8 px rows)
   auto c = [dim](uint16_t col) { return dim ? tft.alphaBlend(80, col, TFT_BLACK) : col; };
-  spr.fillRect(x - 12, y + 3, 24, 9, c(ROAD));
-  spr.fillRoundRect(x - 10, y + 4, 12, 7, 2, c(TFT_RED));
-  spr.fillRoundRect(x - 3, y - 11, 10, 10, 3, c(TFT_WHITE));
-  spr.fillRect(x + 1, y - 13, 3, 3, c(TFT_RED));
-  spr.fillRect(x + 1, y - 10, 3, 2, c(TFT_ORANGE));
+  static const uint32_t PERIOD = 2400;            // cars move 120 px = 3 gaps: seamless loop
+  uint32_t p = t % PERIOD;
+
+  // car's left edge relative to x, -26..13; 0.05 px/ms, one car every 40 px
+  auto carX = [p](int e0, int dir) {
+    int v = e0 + 26 + dir * (int)(p / 20);
+    return ((v % 40) + 40) % 40 - 26;
+  };
+  // timed so a car passes right before the chicken enters lane B and right
+  // after it leaves lane A
+  int carA = carX(-78, 1), carB = carX(20, -1);
+
+  float s = p < 1900 ? 0 : (p - 1900) / 500.0f;   // scroll on in the last 500 ms
+  int off = (int)roundf(24 * s * s * (3 - 2 * s));
+  for (int r = -1; r <= 1; r++) {
+    int top = y - 16 + off + r * 24;
+    spr.fillRect(x - 12, top + 8, 25, 16, c(ROAD));
+    for (int k = -12; k <= 12; k += 6) spr.drawFastHLine(x + k, top + 16, 3, c(LINE));
+    int cars[2] = {carA, carB};
+    for (int l = 0; l < 2; l++) {
+      int cx = x + cars[l], cy = top + 9 + l * 8;
+      spr.fillRoundRect(cx, cy, 10, 6, 2, c(l ? 0x435F : TFT_RED));
+      spr.fillRect(l ? cx + 1 : cx + 7, cy + 1, 2, 4, c(0x18E3));   // windscreen, facing its way
+    }
+  }
+
+  // chicken: hops of 8 px at fixed times, then rides the scroll down
+  static const uint16_t HOP[3] = {680, 950, 1180};
+  int cy = y + 12;
+  for (int h = 0; h < 3; h++)
+    if (p >= HOP[h]) cy -= p >= HOP[h] + 120u ? 8 : (int)((p - HOP[h]) / 15);
+  cy += off;
+  spr.fillRoundRect(x - 3, cy - 3, 7, 7, 2, c(TFT_WHITE));
+  spr.fillRect(x - 1, cy - 4, 3, 2, c(TFT_RED));     // comb
+  spr.fillRect(x - 1, cy - 1, 3, 1, c(TFT_ORANGE));  // beak
 }
 
 void begin() {

@@ -332,15 +332,23 @@ static void handleInput(uint32_t now) {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int cx, int cy, bool dim) {
-  // a small stack of pieces, 3x3 cells
-  static const uint8_t ICON[3][3] = {{5, 5, 5}, {2, 5, 0}, {2, 2, 0}};   // T, L, I (piece types)
-  for (int r = 0; r < 3; r++)
-    for (int c = 0; c < 3; c++) {
-      uint16_t col = COLORS[ICON[r][c]];
-      if (dim) col = tft.alphaBlend(80, col, TFT_BLACK);
-      drawCell(cx - 12 + c * 8, cy - 12 + r * 8, 8, col);
-    }
+void drawIcon(int cx, int cy, bool dim, uint32_t t) {
+  // an I piece drops into the gap, two rows flash and clear (3x4 cells)
+  static const int8_t BASE[4][3] = {{-1, -1, -1}, {5, -1, -1}, {5, 5, -1}, {2, 2, -1}};
+  uint32_t p = (t + 1000) % 2400;                  // t = 0: piece just landed
+  bool flash = p >= 1200 && p < 1600 && p / 100 % 2 == 0;
+  bool cleared = p >= 1600;
+  auto cell = [&](int r, int c, uint16_t col) {
+    if (flash && r >= 2) col = TFT_WHITE;
+    if (dim) col = tft.alphaBlend(80, col, TFT_BLACK);
+    drawCell(cx - 12 + c * 8, cy - 16 + r * 8, 8, col);
+  };
+  if (cleared) { cell(3, 0, COLORS[5]); return; }  // what is left after the clear
+  for (int r = 0; r < 4; r++)
+    for (int c = 0; c < 3; c++)
+      if (BASE[r][c] >= 0) cell(r, c, COLORS[BASE[r][c]]);
+  int top = p < 800 ? (int)(p / 200) - 2 : 2;      // falls one row per 200 ms
+  for (int i = 0; i < 2; i++) cell(top + i, 2, COLORS[0]);
 }
 
 void begin() {

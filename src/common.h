@@ -47,6 +47,8 @@ extern Btn bL, bR;
 int updateBtn(Btn &b, uint32_t now);
 
 void drawCell(int px, int py, int sz, uint16_t col);
+// 0 -> 1 -> 0 over `period` ms, for back-and-forth icon animations
+float triWave(uint32_t t, uint32_t period);
 
 // ---------------- power (power.cpp) ----------------
 static const int NUM_BRIGHTNESS = 5;
@@ -84,12 +86,13 @@ EndChoice startOrEnd(bool gameOver, int eL, int eR, bool &armed);
 
 // ---------------- games ----------------
 // Each game: begin() shows its title screen, update() runs one loop iteration,
-// drawIcon() draws a menu icon of at most ~24x30 centred on (cx, cy).
+// drawIcon() draws a menu icon of at most ~24x30 centred on (cx, cy); t is an
+// animation clock in ms (0 = still picture), drawing is clipped to the icon area.
 #define DECLARE_GAME(ns) \
   namespace ns { \
     void begin(); \
     void update(uint32_t now); \
-    void drawIcon(int cx, int cy, bool dim); \
+    void drawIcon(int cx, int cy, bool dim, uint32_t t = 0); \
   }
 DECLARE_GAME(tetris)
 DECLARE_GAME(snake)

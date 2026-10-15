@@ -308,11 +308,18 @@ static void render() {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int x, int y, bool dim) {
+void drawIcon(int x, int y, bool dim, uint32_t t) {
+  // ship strafes and fires; the alien flashes when a shot reaches it
   auto c = [dim](uint16_t col) { return dim ? tft.alphaBlend(80, col, TFT_BLACK) : col; };
-  spr.fillEllipse(x + 4, y - 9, 6, 3, c(TFT_MAGENTA));
-  spr.fillRect(x - 1, y - 3, 2, 5, c(TFT_YELLOW));
-  spr.fillTriangle(x - 4, y + 3, x - 11, y + 15, x + 3, y + 15, c(SHIP));
+  auto shipX = [x](uint32_t t) { return x - 4 + (int)roundf(sinf(t * 0.003f) * 4); };
+  int ax = x + 4 + (int)roundf(sinf(t * 0.002f) * 3);
+  uint32_t fired = t / 500 * 500;                  // one shot every 500 ms
+  int bx = shipX(fired), by = y - 3 - (int)((t - fired) / 20);
+  bool hit = by <= y - 9 && abs(bx - ax) <= 6;
+  if (!hit) spr.fillRect(bx - 1, by, 2, 5, c(TFT_YELLOW));
+  spr.fillEllipse(ax, y - 9, 6, 3, c(hit ? TFT_WHITE : TFT_MAGENTA));
+  int sx = shipX(t);
+  spr.fillTriangle(sx, y + 3, sx - 7, y + 15, sx + 7, y + 15, c(SHIP));
 }
 
 void begin() {

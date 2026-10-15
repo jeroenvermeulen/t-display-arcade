@@ -41,6 +41,11 @@ void drawCell(int px, int py, int sz, uint16_t col) {
   spr.drawFastVLine(px + sz - 2, py, sz - 1, dk);
 }
 
+float triWave(uint32_t t, uint32_t period) {
+  float f = (float)(t % period) / period;
+  return f < 0.5f ? 2 * f : 2 - 2 * f;
+}
+
 void drawScoreHeader(uint32_t score, uint32_t best) {
   char buf[32];
   spr.fillRect(0, 0, 135, HEADER_H, TFT_BLACK);
@@ -104,11 +109,16 @@ void drawMoon(int x, int y, int r, uint16_t col, uint16_t bg) {
   spr.fillCircle(x + r / 2, y - r / 3, r - 1, bg);    // bite out a crescent
 }
 
-void sleepIcon(int x, int y, bool dim) {
+void sleepIcon(int x, int y, bool dim, uint32_t t) {
   drawMoon(x - 2, y, 11, dim ? tft.alphaBlend(80, TFT_YELLOW, TFT_BLACK) : TFT_YELLOW, TFT_BLACK);
-  uint16_t star = dim ? TFT_DARKGREY : TFT_WHITE;
-  spr.fillCircle(x + 9, y + 6, 1, star);
-  spr.drawPixel(x + 5, y - 10, star);
+  // the two stars twinkle in turn
+  auto star = [&](uint32_t phase) -> uint16_t {
+    if (dim) return TFT_DARKGREY;
+    if (!t) return TFT_WHITE;
+    return tft.alphaBlend(60 + (int)(195 * triWave(t + phase, 1600)), TFT_WHITE, TFT_BLACK);
+  };
+  spr.fillCircle(x + 9, y + 6, 1, star(800));
+  spr.drawPixel(x + 5, y - 10, star(0));
 }
 
 void sleepInfo(char *buf, size_t n) { snprintf(buf, n, WAKE_BTN " wakes it up"); }
@@ -132,7 +142,7 @@ struct MenuItem {
   const char *hiKey;             // NVS key of a game's high score; nullptr if not a game
   void (*begin)();
   void (*update)(uint32_t now);  // nullptr: begin() never returns
-  void (*drawIcon)(int cx, int cy, bool dim);
+  void (*drawIcon)(int cx, int cy, bool dim, uint32_t t);
   void (*info)(char *buf, size_t n);   // subtitle when there is no high score
   const char *action;            // footer verb for R
 };
@@ -155,12 +165,15 @@ static const int NUM_ITEMS = sizeof ITEMS / sizeof ITEMS[0];
 int selected = 0;
 int active = -1;                   // -1 = in menu
 bool menuDirty = true, pressedL = false, pressedR = false;
-uint32_t menuLastInput = 0, menuLastAnim = 0;
+uint32_t menuLastInput = 0, menuLastAnim = 0, menuLastFrame = 0;
+uint32_t selectedAt = 0;           // the selected icon's animation starts here
 
 // The game list scrolls inside a viewport between the header and the footer.
 static const int MENU_LIST_Y = 26, MENU_LIST_H = 186;       // screen rows 26..211
 static const int BOX_H = 56, BOX_PITCH = 62;      // 3 boxes fit in the viewport
 static const int MAX_SCROLL = max(0, NUM_ITEMS * BOX_PITCH - 6 + 4 - MENU_LIST_H);
+static const int ICON_X = 114, ICON_HALF_W = 13, ICON_HALF_H = 16;   // icon clip area around (ICON_X, box centre)
+static const uint32_t ICON_FRAME_MS = 33;         // the selected icon animates at ~30 fps
 int scroll = 0;                                    // current list offset, px
 
 // smallest change to the current scroll that shows the selected box completely
@@ -172,7 +185,7 @@ int scrollTarget() {
   return constrain(t, 0, MAX_SCROLL);
 }
 
-void renderMenu() {
+void renderMenu(uint32_t now) {
   char buf[32];
   spr.fillSprite(TFT_BLACK);
   spr.setTextDatum(TC_DATUM);
@@ -196,7 +209,18 @@ void renderMenu() {
     if (ITEMS[g].hiKey) snprintf(buf, sizeof buf, "Best %lu", (unsigned long)prefs.getUInt(ITEMS[g].hiKey, 0));
     else ITEMS[g].info(buf, sizeof buf);
     spr.drawString(buf, 12, y + 34, 2);
-    ITEMS[g].drawIcon(114, y + 28, !sel);
+
+    // icon, clipped to its own area within the list (absolute coordinates);
+    // only the selected one moves
+    int cy = MENU_LIST_Y + y + 28;
+    int top = max(cy - ICON_HALF_H, MENU_LIST_Y), bottom = min(cy + ICON_HALF_H, MENU_LIST_Y + MENU_LIST_H);
+    if (bottom > top) {
+      spr.setViewport(ICON_X - ICON_HALF_W + 1, top, 2 * ICON_HALF_W - 1, bottom - top, false);
+      // signed: selectedAt may be a millis() taken after `now`
+      uint32_t t = sel && (int32_t)(now - selectedAt) > 0 ? now - selectedAt : 0;
+      ITEMS[g].drawIcon(ICON_X, cy, !sel, t);
+    }
+    spr.setViewport(0, MENU_LIST_Y, 135, MENU_LIST_H);
   }
   spr.resetViewport();
 
@@ -228,7 +252,7 @@ void returnToMenu() {
   noteActiveItem(-1);
   dbg("back to menu\n");
   pressedL = pressedR = false;
-  menuLastInput = millis();
+  menuLastInput = selectedAt = millis();
   menuDirty = true;
 }
 
@@ -243,6 +267,7 @@ void updateMenu(uint32_t now) {
   if (eL == 2 && pressedL) {
     pressedL = false;
     selected = (selected + 1) % NUM_ITEMS;
+    selectedAt = now;
     menuDirty = true;
   }
   if (eR == 2 && pressedR) {
@@ -260,9 +285,12 @@ void updateMenu(uint32_t now) {
     menuDirty = true;
   }
 
+  if ((int32_t)(now - menuLastFrame) >= (int32_t)ICON_FRAME_MS) menuDirty = true;
+
   if (idleTooLong(now, menuLastInput)) goToSleep();
   if (menuDirty) {
-    renderMenu();
+    menuLastFrame = now;
+    renderMenu(now);
     menuDirty = false;
   }
 }
@@ -295,7 +323,7 @@ void setup() {
   if (!ITEMS[selected].hiKey) selected = 0;
   scroll = scrollTarget();         // start with the remembered game in view, no animation
 
-  menuLastInput = millis();
+  menuLastInput = selectedAt = millis();
 }
 
 void loop() {

@@ -201,15 +201,19 @@ static void handleInput(uint32_t now) {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int cx, int cy, bool dim) {
-  // snake bending round a corner towards the food
-  static const int8_t PATH[5][2] = {{0, 2}, {1, 2}, {2, 2}, {2, 1}, {2, 0}};
-  for (int i = 0; i < 5; i++) {
-    uint16_t col = i == 4 ? TFT_GREENYELLOW : tft.alphaBlend(110 + i * 30, TFT_GREEN, TFT_BLACK);
+void drawIcon(int cx, int cy, bool dim, uint32_t t) {
+  // snake circling a 3x3 grid, eating the food that keeps reappearing ahead of it
+  static const int8_t RING[8][2] = {{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}};
+  uint32_t step = t / 180 + 6;
+  uint32_t food = (step / 5 + 1) * 5 % 8;
+  spr.fillCircle(cx - 12 + RING[food][0] * 8 + 3, cy - 12 + RING[food][1] * 8 + 3, 3,
+                 dim ? tft.alphaBlend(80, TFT_RED, TFT_BLACK) : TFT_RED);
+  for (int i = 4; i >= 0; i--) {                   // tail first, head (i = 0) on top
+    const int8_t *p = RING[(step - i) % 8];
+    uint16_t col = i == 0 ? TFT_GREENYELLOW : tft.alphaBlend(230 - i * 30, TFT_GREEN, TFT_BLACK);
     if (dim) col = tft.alphaBlend(80, col, TFT_BLACK);
-    drawCell(cx - 12 + PATH[i][0] * 8, cy - 12 + PATH[i][1] * 8, 8, col);
+    drawCell(cx - 12 + p[0] * 8, cy - 12 + p[1] * 8, 8, col);
   }
-  spr.fillCircle(cx - 8, cy - 8, 3, dim ? tft.alphaBlend(80, TFT_RED, TFT_BLACK) : TFT_RED);
 }
 
 void begin() {

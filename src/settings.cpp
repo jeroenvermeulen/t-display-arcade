@@ -110,10 +110,10 @@ static void render() {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int x, int y, bool dim) {
+void drawIcon(int x, int y, bool dim, uint32_t t) {
   uint16_t col = dim ? tft.alphaBlend(80, TFT_LIGHTGREY, TFT_BLACK) : TFT_LIGHTGREY;
-  for (int i = 0; i < 8; i++) {                         // gear teeth
-    float a = i * PI / 4;
+  for (int i = 0; i < 8; i++) {                         // gear teeth, turning slowly
+    float a = i * PI / 4 + t * 0.0015f;
     spr.fillCircle(x + (int)roundf(cosf(a) * 8), y + (int)roundf(sinf(a) * 8), 2, col);
   }
   spr.fillCircle(x, y, 7, col);

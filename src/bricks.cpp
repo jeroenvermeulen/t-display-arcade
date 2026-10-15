@@ -231,12 +231,21 @@ static void render() {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int x, int y, bool dim) {
+void drawIcon(int x, int y, bool dim, uint32_t t) {
+  // ball bounces off the paddle and knocks out bricks; the wall refills every 6 hits
   auto c = [dim](uint16_t col) { return dim ? tft.alphaBlend(80, col, TFT_BLACK) : col; };
-  for (int r = 0; r < 3; r++)
-    for (int k = 0; k < 3; k++) drawBrick(x - 12 + k * 8, y - 12 + r * 5, 7, 4, c(ROW_COLORS[r]));
-  spr.fillCircle(x + 3, y + 4, 2, c(TFT_WHITE));
-  spr.fillRect(x - 7, y + 10, 14, 3, c(TFT_LIGHTGREY));
+  static const uint32_t P = 800;                   // ball goes up and down once per P ms
+  auto ballX = [x](uint32_t t) { return x - 10 + (int)roundf(20 * triWave(t + 700, 2200)); };
+  uint32_t cycle = t / (6 * P) * (6 * P);
+  bool gone[3] = {false, false, false};
+  for (uint32_t h = cycle; h < t; h += P) gone[constrain((ballX(h) - x + 12) / 8, 0, 2)] = true;
+  for (int k = 0; k < 3; k++) {
+    drawBrick(x - 12 + k * 8, y - 15, 7, 4, c(ROW_COLORS[0]));
+    if (!gone[k]) drawBrick(x - 12 + k * 8, y - 10, 7, 4, c(ROW_COLORS[1]));
+  }
+  int bx = ballX(t);
+  spr.fillCircle(bx, y - 4 + (int)roundf(12 * triWave(t, P)), 2, c(TFT_WHITE));
+  spr.fillRect(x + constrain(bx - x, -5, 5) - 7, y + 11, 14, 3, c(TFT_LIGHTGREY));
 }
 
 void begin() {

@@ -298,8 +298,16 @@ static void handleInput(uint32_t now) {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int cx, int cy, bool dim) {
-  drawCar(cx, cy - CAR_H / 2, dim ? tft.alphaBlend(80, TFT_RED, TFT_BLACK) : TFT_RED);
+void drawIcon(int cx, int cy, bool dim, uint32_t t) {
+  // lane markings rush past while the car weaves a little
+  uint16_t line = dim ? TFT_DARKGREY : TFT_WHITE;
+  int off = (int)(t * 3 / 25 % 12);
+  for (int y = cy - 24 + off; y < cy + 16; y += 12) {
+    spr.drawFastVLine(cx - 12, y, 6, line);
+    spr.drawFastVLine(cx + 12, y, 6, line);
+  }
+  int dx = t ? (int)roundf(sinf(t * 0.004f) * 2) : 0;
+  drawCar(cx + dx, cy - CAR_H / 2, dim ? tft.alphaBlend(80, TFT_RED, TFT_BLACK) : TFT_RED);
 }
 
 void begin() {

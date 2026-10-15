@@ -238,12 +238,16 @@ static void render() {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int x, int y, bool dim) {
+void drawIcon(int x, int y, bool dim, uint32_t t) {
+  // rally: the ball bounces between the paddles, which chase it sideways
   auto c = [dim](uint16_t col) { return dim ? tft.alphaBlend(80, col, TFT_BLACK) : col; };
-  spr.fillRoundRect(x - 11, y - 12, 14, 4, 2, c(TFT_RED));
-  spr.fillRoundRect(x - 3, y + 8, 14, 4, 2, c(TFT_YELLOW));
-  spr.fillCircle(x + 3, y - 1, 3, c(BALL));
-  for (int i = -12; i <= 12; i += 4) spr.drawFastHLine(x + i, y + 3, 2, c(TFT_LIGHTGREY));
+  auto ballX = [x](uint32_t t) { return x - 7 + (int)roundf(14 * triWave(t + 1200, 2600)); };
+  int redX = constrain(ballX(t + 2600 - 250) - x, -5, 5);   // lagging behind the ball
+  int yelX = constrain(ballX(t + 2600 - 150) - x, -5, 5);
+  spr.fillRoundRect(x + redX - 7, y - 12, 14, 4, 2, c(TFT_RED));
+  spr.fillRoundRect(x + yelX - 7, y + 8, 14, 4, 2, c(TFT_YELLOW));
+  for (int i = -12; i <= 12; i += 4) spr.drawFastHLine(x + i, y, 2, c(TFT_LIGHTGREY));
+  spr.fillCircle(ballX(t), y - 5 + (int)roundf(10 * triWave(t + 300, 1200)), 3, c(BALL));
 }
 
 void begin() {

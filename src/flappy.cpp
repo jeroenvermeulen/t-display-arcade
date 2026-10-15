@@ -250,8 +250,19 @@ static void handleInput(uint32_t now) {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int cx, int cy, bool dim) {
-  drawBirdShape(spr, cx, cy, -1, dim);
+void drawIcon(int cx, int cy, bool dim, uint32_t t) {
+  // bird hops on the spot while a pipe slides past
+  if (t) {
+    int x = cx + 13 - (int)(t % 1500 / 30);
+    spr.fillRect(x, cy - 24, 7, 13, PIPE);
+    spr.fillRect(x, cy + 11, 7, 13, PIPE);
+    spr.drawFastVLine(x + 1, cy - 24, 13, PIPE_LT);
+    spr.drawFastVLine(x + 1, cy + 11, 13, PIPE_LT);
+  }
+  uint32_t h = t % 500;                            // one flap every 500 ms
+  int y = cy + 2 - (int)(h * (500 - h) / 15625);   // parabola, 4 px high
+  int wing = t ? (int)(h / 80 % 3) - 1 : -1;
+  drawBirdShape(spr, cx - 2, y, wing, dim);
 }
 
 void begin() {

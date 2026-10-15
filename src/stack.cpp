@@ -220,13 +220,18 @@ static void render() {
 }
 
 // ---------------- entry points ----------------
-void drawIcon(int x, int y, bool dim) {
+void drawIcon(int x, int y, bool dim, uint32_t t) {
+  // the top block swings back and forth, then stops on the tower
   static const int8_t W[4] = {24, 20, 18, 14};
   static const int8_t X[4] = {-12, -10, -8, -6};
+  uint32_t p = (t + 1000) % 1600;                  // t = 0: block just placed
   for (int i = 0; i < 4; i++) {
     uint16_t col = hueColor(i * 30);
+    if (i == 3 && p >= 1000 && p < 1150) col = TFT_WHITE;   // flash on landing
     if (dim) col = tft.alphaBlend(80, col, TFT_BLACK);
-    spr.fillRect(x + X[i], y + 8 - i * 6, W[i], 5, col);
+    int bx = X[i];
+    if (i == 3 && p < 1000) bx += (int)roundf(sinf(p * 3 * PI / 1000) * 10);
+    spr.fillRect(x + bx, y + 8 - i * 6, W[i], 5, col);
   }
 }
 
