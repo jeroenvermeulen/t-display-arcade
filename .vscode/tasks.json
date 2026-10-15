@@ -1,0 +1,71 @@
+{
+  // Run with Terminal > Run Task… (Cmd+Shift+B runs the default build task).
+  // Serial port: the first /dev/cu.usbserial-* (macOS), i.e. the T-Display.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "pio run",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$platformio"]
+    },
+    {
+      // the board's USB chip sometimes drops the first connection attempt
+      "label": "Upload (retries once)",
+      "type": "shell",
+      "command": "pio run -t upload || { echo '--- retrying upload ---'; pio run -t upload; }",
+      "problemMatcher": ["$platformio"]
+    },
+    {
+      "label": "Upload + serial monitor",
+      "type": "shell",
+      "command": "pio run -t upload -t monitor",
+      "problemMatcher": ["$platformio"],
+      "isBackground": false
+    },
+    {
+      // turn on Settings > USB log on the board to see more than boot/crash output
+      "label": "Serial monitor",
+      "type": "shell",
+      "command": "pio device monitor",
+      "problemMatcher": []
+    },
+    {
+      // reads the NVS partition (settings + scores) without changing it; restarts the board
+      "label": "Show last crash record",
+      "type": "shell",
+      "command": "PORT=$(ls /dev/cu.usbserial-* | head -1) && ~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py --port \"$PORT\" --baud 115200 read_flash 0x9000 0x5000 .pio/nvs.bin >/dev/null && R=$(strings -n 4 .pio/nvs.bin | grep -E '^(crash|watchdog|brownout|reset) in ' | tail -1) && echo \"Last crash record: ${R:-none}\"",
+      "problemMatcher": []
+    },
+    {
+      // NVS holds the high scores, brightness, USB log, last game and crash record
+      "label": "Reset high scores & settings (erase NVS)",
+      "type": "shell",
+      "command": "if [ \"${input:confirmErase}\" = 'Yes, erase' ]; then PORT=$(ls /dev/cu.usbserial-* | head -1) && ~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py --port \"$PORT\" --baud 115200 erase_region 0x9000 0x5000; else echo 'Cancelled.'; fi",
+      "problemMatcher": []
+    },
+    {
+      "label": "Clean build",
+      "type": "shell",
+      "command": "pio run -t clean && pio run",
+      "problemMatcher": ["$platformio"]
+    },
+    {
+      // per-file flash/RAM usage, biggest first
+      "label": "Size report",
+      "type": "shell",
+      "command": "pio run -t size && ~/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-size -t .pio/build/ttgo-t-display/src/*.o | sort -k1 -n -r | head -15",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "confirmErase",
+      "type": "pickString",
+      "description": "Erase all high scores and settings on the board?",
+      "options": ["Cancel", "Yes, erase"],
+      "default": "Cancel"
+    }
+  ]
+}
