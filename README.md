@@ -1,5 +1,10 @@
 # T-Display Arcade
 
+> **🤖 This project is 100% AI-generated.** Every line of code, configuration and
+> documentation was written by AI (Claude, using Claude Code). A human chose the
+> features, played the games on the real board and reported problems, but did not
+> write or edit any of the code. Read and use it with that in mind.
+
 Nine small arcade games for the **LilyGO TTGO T-Display V1.1**, an ESP32 board with a
 1.14" colour screen (135 × 240, used upright) and two buttons. Pick a game from a
 scrolling menu; high scores and settings are remembered when the power is off.
