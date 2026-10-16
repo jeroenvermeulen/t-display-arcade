@@ -4,6 +4,7 @@
 //   Tap L or R : hop forward
 //   Hold L     : hop left  (repeats while held)
 //   Hold R     : hop right (repeats while held)
+//   L + R      : hop back
 // Cross roads without getting hit, ride the logs over rivers (the water and
 // the screen edge are deadly), and walk around the trees. The view slowly
 // scrolls forward on its own; fall off the bottom and you're too slow.
@@ -53,7 +54,7 @@ static Death death;
 
 static int row, maxRow;                                  // world row of the chicken
 static float px;                                         // chicken left edge (float: logs carry it)
-static int facing;                                       // 0 up, -1 left, 1 right
+static int facing;                                       // 0 up, -1 left, 1 right, 2 down
 static int hopT;                                         // ticks left in the hop animation
 static float fromX, fromRow;                             // where the current hop started
 static float cam;                                        // world row shown at the bottom of the screen
@@ -173,8 +174,9 @@ static void newGame() {
 
 static void hop(int dCol, int dRow) {
   if (state != PLAY) return;
-  facing = dRow ? 0 : dCol;
+  facing = dRow > 0 ? 0 : dRow < 0 ? 2 : dCol;
   int nr = row + dRow;
+  if (nr < 0) return;                                    // nothing behind the start
   float nx = px + dCol * CELL;
   ensureGenerated(nr + 1);
 
@@ -269,7 +271,9 @@ static void drawChicken(int x, int y, int lift, bool flat) {
   spr.fillRect(x + 9, y + 13, 2, 2, TFT_ORANGE);
   spr.fillRoundRect(x + 2, y + 2, 11, 11, 3, TFT_WHITE); // body
   spr.fillRect(x + 6, y, 3, 3, TFT_RED);                 // comb
-  if (facing == 0) {
+  if (facing == 2) {
+    spr.fillRect(x + 6, y + 11, 3, 2, TFT_LIGHTGREY);    // walking away from us: tail, no face
+  } else if (facing == 0) {
     spr.fillRect(x + 6, y + 3, 3, 2, TFT_ORANGE);        // beak
     spr.drawPixel(x + 4, y + 4, TFT_BLACK);
     spr.drawPixel(x + 10, y + 4, TFT_BLACK);
@@ -349,18 +353,18 @@ static void drawTitle() {
   drawChicken(60, 61, 0, false);
 
   spr.setTextDatum(TL_DATUM);
-  const char *keys[] = {"Tap L/R", "Hold L", "Hold R"};
-  const char *acts[] = {"hop forward", "hop left", "hop right"};
-  for (int i = 0; i < 3; i++) {
+  const char *keys[] = {"Tap L/R", "Hold L", "Hold R", "L + R"};
+  const char *acts[] = {"hop forward", "hop left", "hop right", "hop back"};
+  for (int i = 0; i < 4; i++) {
     spr.setTextColor(TFT_YELLOW);
-    spr.drawString(keys[i], 6, 86 + i * 18, 2);
+    spr.drawString(keys[i], 6, 82 + i * 16, 2);
     spr.setTextColor(TFT_WHITE);
-    spr.drawString(acts[i], 62, 86 + i * 18, 2);
+    spr.drawString(acts[i], 62, 82 + i * 16, 2);
   }
   spr.setTextDatum(TC_DATUM);
   spr.setTextColor(TFT_LIGHTGREY);
-  spr.drawString("Ride logs, dodge cars", 67, 148, 1);
-  spr.drawString("and keep moving!", 67, 160, 1);
+  spr.drawString("Ride logs, dodge cars", 67, 152, 1);
+  spr.drawString("and keep moving!", 67, 164, 1);
 
   snprintf(buf, sizeof buf, "Best %lu", (unsigned long)hiScore);
   spr.drawString(buf, 67, 190, 2);
@@ -383,6 +387,12 @@ static void handleInput(uint32_t now) {
   if (state != PLAY) {
     if ((state == TITLE || now - deadAt > 700) && startOrEnd(state == GAMEOVER, eL, eR, armed) == END_PLAY) newGame();
     return;
+  }
+
+  // both buttons down together: hop back; neither press counts as a tap or hold
+  if (bL.stable && bR.stable && !bL.consumed && !bR.consumed) {
+    bL.consumed = bR.consumed = true;
+    hop(0, -1);
   }
 
   // hold: sideways hops, repeating while held

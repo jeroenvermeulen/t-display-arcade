@@ -24,7 +24,7 @@ button) and R the one on GPIO35, which also wakes the board from sleep.
 | **Bricks** | Hold L/R: move paddle | Breakout: clear the wall, 3 lives, faster each level |
 | **Stack** | Tap L or R: drop block | Stack as high as you can; overhangs are cut off, 3 perfect drops in a row widen the block |
 | **Shooter** | Hold L/R: fly (fires by itself) | Shoot saucers and cruisers in growing waves; 3 lives |
-| **Crossy** | Tap L or R: hop forward · Hold L/R: hop sideways | Cross roads and rivers; keep moving or the eagle gets you |
+| **Crossy** | Tap L or R: hop forward · Hold L/R: hop sideways · L + R: hop back | Cross roads and rivers; keep moving or the eagle gets you |
 
 **Starting and ending a game:** on a game's title screen, press any button to start.
 When the game ends, press **L** to go back to the menu or **R** to play again.
@@ -91,3 +91,21 @@ AGENTS.md             notes for AI coding agents (also useful for humans adding 
 
 Want to add a game? See "Adding a game" in [AGENTS.md](AGENTS.md); it takes one new
 file and two one-line registrations.
+
+## Hardware
+### Module
+[TTGO T-Display v1.1](https://lilygo.cc/products/t-display)
+- ESP32 Xtensa dual-core LX6 microprocessor
+- 1.14 inch ST7789V IPS LCD. 
+  - SPI interface
+  - 135 x 240 pixels, 260 PPI
+  - Full Color
+- 4M or 16M Flash
+- CH9102 Serial
+- 2 Pin 1.25mm JST battery terminal
+
+### Battery
+3.7V Lipo Battery, I am using a 102540
+
+### Case
+[Case for 3D Printing](https://www.thingiverse.com/thing:4943960)
